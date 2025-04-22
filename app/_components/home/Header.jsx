@@ -56,7 +56,7 @@ function Header() {
             >
              
               <span className="font-display font-medium text-xl tracking-tight">
-                The<span className="font-light text-coffee-400"> Central</span> Notice
+                Supabase<span className="font-light text-coffee-400"> Coupons</span> 
               </span>
             </a>
           </div>
