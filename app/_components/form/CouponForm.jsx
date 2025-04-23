@@ -64,7 +64,7 @@ const CouponForm = () => {
         ? phone.replace(/\s/g, "")
         : `+254${phone.replace(/\s/g, "")}`; // Use +254 for Kenya
 
-      const message = `Thank you for claiming your coupon! 🎉\n\nYour Coupon Code: ${code}\nCheckout Link: https://supabase.store/products/supalaunchweek14-dark-mode-tee \n\nHappy Shopping!`;
+        const message = `Thank you for claiming your Supabase LW14 coupon! 🎉\n\nHere is your LW14 T-Shirt Coupon Code: ${code}\nCheckout here: https://supabase.store/products/supalaunchweek14-dark-mode-tee \n \n For support, contact: +254 716 813 545 \n Support on X: https://x.com/chepparing\n\n Let's build with Supabase!`;
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(
         message
       )}`;
@@ -210,7 +210,7 @@ const CouponForm = () => {
               <Input
                 id="phone"
                 type="tel"
-                placeholder="Enter your phone number"
+                placeholder="start with 0716 / 0112"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
