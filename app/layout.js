@@ -24,6 +24,9 @@ export const metadata = {
   title: "Supabase LW14 Codes",
   description:
     "Redeem your LW14 codes",
+    icons: {
+      icon: "/ico.svg", // Use .svg or .ico here
+    },
 };
 
 export default function RootLayout({ children }) {
