@@ -64,7 +64,7 @@ const CouponForm = () => {
         ? phone.replace(/\s/g, "")
         : `+254${phone.replace(/\s/g, "")}`; // Use +254 for Kenya
 
-      const message = `Thank you for claiming your coupon! 🎉\n\nYour Coupon Code: ${code}\nCheckout Link: https://yourstore.com/checkout\n\nHappy Shopping!`;
+      const message = `Thank you for claiming your coupon! 🎉\n\nYour Coupon Code: ${code}\nCheckout Link: https://supabase.store/products/supalaunchweek14-dark-mode-tee \n\nHappy Shopping!`;
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(
         message
       )}`;
