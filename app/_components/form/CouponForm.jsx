@@ -20,6 +20,16 @@ const CouponForm = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [claimedEmails, setClaimedEmails] = useState(new Set()); // Track claimed emails
+
+  const resetForm = () => {
+    setEmail("");
+    setMessage(null);
+    setError(null);
+    setName("");
+    setPhone("");
+    setIsLoading(false);
+  };
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
@@ -30,20 +40,33 @@ const CouponForm = () => {
     try {
       const { data, error } = await supabase
         .from("merch")
-        .select("email, status, code") // Use 'code' instead of 'coupon_code'
+        .select("email, status, code")
         .eq("email", email)
         .maybeSingle();
 
       if (error) throw error;
 
       if (data) {
-        // Check if coupon is already claimed
         if (data.status === "claimed") {
-          setError("This email has already claimed a coupon.");
-          return;
+          if (claimedEmails.has(email)) {
+            // If email was already checked once, block further attempts
+            setError(
+              "This email has already claimed a coupon and cannot be checked again."
+            );
+            setIsLoading(false);
+            return;
+          }
+          // Allow one more check for claimed email
+          setMessage(
+            "Email has already claimed a coupon. Please provide your details to resend the coupon code."
+          );
+          setIsDialogOpen(true);
+          setClaimedEmails((prev) => new Set(prev).add(email)); // Mark email as checked
+        } else {
+          // Unclaimed email, proceed normally
+          setMessage("Email found! Please provide your details.");
+          setIsDialogOpen(true);
         }
-        setMessage("Email found! Please provide your details.");
-        setIsDialogOpen(true);
       } else {
         setError(
           "Your Email is missing, You did not provide your email or a typo. Contact Godfrey."
@@ -59,19 +82,16 @@ const CouponForm = () => {
 
   const sendWhatsAppMessage = async (phone, code) => {
     try {
-      // Format phone number (remove spaces, add +254 if needed)
       const formattedPhone = phone.replace(/\s/g, "").startsWith("+")
         ? phone.replace(/\s/g, "")
-        : `+254${phone.replace(/\s/g, "")}`; // Use +254 for Kenya
+        : `+254${phone.replace(/\s/g, "")}`;
 
-        const message = `Thank you for claiming your Supabase LW14 coupon! 🎉\n\nHere is your LW14 T-Shirt Coupon Code: ${code}\nCheckout here: https://supabase.store/products/supalaunchweek14-dark-mode-tee \n \n For support, contact: +254 716 813 545 \n Support on X: https://x.com/chepparing\n\n Let's build with Supabase!`;
+      const message = `Thank you for claiming your Supabase LW14 coupon! 🎉\n\nHere is your LW14 T-Shirt Coupon Code: ${code}\nCheckout here: https://supabase.store/products/supalaunchweek14-dark-mode-tee \n \n For support, contact: +254 716 813 545 \n Support on X: https://x.com/chepparing\n\n Let's build with Supabase!`;
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(
         message
       )}`;
 
-      // Open WhatsApp with pre-filled message
       window.open(whatsappUrl, "_blank");
-
       return true;
     } catch (err) {
       console.error("Error sending WhatsApp message:", err);
@@ -84,10 +104,10 @@ const CouponForm = () => {
     setIsLoading(true);
 
     try {
-      // Get the coupon code
+      // Get the coupon code and status
       const { data: couponData } = await supabase
         .from("merch")
-        .select("code")
+        .select("code, status")
         .eq("email", email)
         .single();
 
@@ -95,15 +115,13 @@ const CouponForm = () => {
         throw new Error("No coupon code found");
       }
 
-      // Update name, phone, and status
+      // Update name and phone (status remains "claimed" if already claimed)
       const { error } = await supabase
         .from("merch")
         .update({
           name,
           phone,
-          status: "claimed",
-          // Optionally add a claimed_at timestamp if needed
-          // claimed_at: new Date().toISOString(),
+          status: couponData.status === "claimed" ? "claimed" : "claimed",
         })
         .eq("email", email);
 
@@ -113,24 +131,36 @@ const CouponForm = () => {
       const messageSent = await sendWhatsAppMessage(phone, couponData.code);
 
       if (messageSent) {
-        setMessage("Coupon claimed successfully! Check your WhatsApp for details.");
+        setMessage(
+          couponData.status === "claimed"
+            ? "Coupon code resent successfully! Check your WhatsApp for details."
+            : "Coupon claimed successfully! Check your WhatsApp for details."
+        );
       } else {
         setMessage(
-          "Coupon claimed, but failed to send WhatsApp message. Please note your coupon code: " +
-            couponData.code
+          couponData.status === "claimed"
+            ? "Coupon code resent, but failed to send WhatsApp message. Please note your coupon code: " +
+              couponData.code
+            : "Coupon claimed, but failed to send WhatsApp message. Please note your coupon code: " +
+              couponData.code
         );
       }
 
       setIsDialogOpen(false);
-      setName("");
-      setPhone("");
-      setEmail(""); // Clear email field
+      resetForm();
     } catch (err) {
       console.error("Error saving details:", err);
-      setError("Failed to claim coupon: " + err.message);
+      setError("Failed to process coupon: " + err.message);
+      setIsDialogOpen(false);
+      resetForm();
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    resetForm();
   };
 
   return (
@@ -177,7 +207,7 @@ const CouponForm = () => {
         </div>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Provide Your Details</DialogTitle>
@@ -221,7 +251,7 @@ const CouponForm = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsDialogOpen(false)}
+                onClick={handleDialogClose}
               >
                 Cancel
               </Button>
@@ -231,7 +261,7 @@ const CouponForm = () => {
                 className="bg-black text-white hover:bg-gray-900"
                 style={{ border: "2px solid #22c55e" }}
               >
-                {isLoading ? "Claiming..." : "Claim Coupon"}
+                {isLoading ? "Processing..." : "Submit Details"}
               </Button>
             </DialogFooter>
           </form>
