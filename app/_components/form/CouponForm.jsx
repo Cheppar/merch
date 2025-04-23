@@ -10,7 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import React, { useState } from "react";
-import {supabase} from "../../../utils/supabase/client";
+import { supabase } from "../../../utils/supabase/client";
 
 const CouponForm = () => {
   const [email, setEmail] = useState("");
@@ -30,17 +30,24 @@ const CouponForm = () => {
     try {
       const { data, error } = await supabase
         .from("merch")
-        .select("email")
+        .select("email, status, code") // Use 'code' instead of 'coupon_code'
         .eq("email", email)
         .maybeSingle();
 
       if (error) throw error;
 
       if (data) {
+        // Check if coupon is already claimed
+        if (data.status === "claimed") {
+          setError("This email has already claimed a coupon.");
+          return;
+        }
         setMessage("Email found! Please provide your details.");
-        setIsDialogOpen(true); // Open dialog
+        setIsDialogOpen(true);
       } else {
-        setError("Email not found in the merch table.");
+        setError(
+          "Your Email is missing, You did not provide your email or a typo. Contact Godfrey."
+        );
       }
     } catch (err) {
       console.error("Error querying merch table:", err);
@@ -50,26 +57,77 @@ const CouponForm = () => {
     }
   };
 
+  const sendWhatsAppMessage = async (phone, code) => {
+    try {
+      // Format phone number (remove spaces, add +254 if needed)
+      const formattedPhone = phone.replace(/\s/g, "").startsWith("+")
+        ? phone.replace(/\s/g, "")
+        : `+254${phone.replace(/\s/g, "")}`; // Use +254 for Kenya
+
+      const message = `Thank you for claiming your coupon! 🎉\n\nYour Coupon Code: ${code}\nCheckout Link: https://yourstore.com/checkout\n\nHappy Shopping!`;
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(
+        message
+      )}`;
+
+      // Open WhatsApp with pre-filled message
+      window.open(whatsappUrl, "_blank");
+
+      return true;
+    } catch (err) {
+      console.error("Error sending WhatsApp message:", err);
+      return false;
+    }
+  };
+
   const handleDialogSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Example: Save name and phone to Supabase (adjust table/columns as needed)
+      // Get the coupon code
+      const { data: couponData } = await supabase
+        .from("merch")
+        .select("code")
+        .eq("email", email)
+        .single();
+
+      if (!couponData?.code) {
+        throw new Error("No coupon code found");
+      }
+
+      // Update name, phone, and status
       const { error } = await supabase
         .from("merch")
-        .update({ name, phone })
+        .update({
+          name,
+          phone,
+          status: "claimed",
+          // Optionally add a claimed_at timestamp if needed
+          // claimed_at: new Date().toISOString(),
+        })
         .eq("email", email);
 
       if (error) throw error;
 
-      setMessage("Details submitted successfully!");
+      // Send WhatsApp message
+      const messageSent = await sendWhatsAppMessage(phone, couponData.code);
+
+      if (messageSent) {
+        setMessage("Coupon claimed successfully! Check your WhatsApp for details.");
+      } else {
+        setMessage(
+          "Coupon claimed, but failed to send WhatsApp message. Please note your coupon code: " +
+            couponData.code
+        );
+      }
+
       setIsDialogOpen(false);
       setName("");
       setPhone("");
+      setEmail(""); // Clear email field
     } catch (err) {
       console.error("Error saving details:", err);
-      setError("Failed to submit details.");
+      setError("Failed to claim coupon: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -78,14 +136,14 @@ const CouponForm = () => {
   return (
     <div>
       <div
-        className="flex min-h-screen items-center justify-center bg-cover bg-center bg-no-repeat"
+        className="flex min-h-screen mt-18 bg-black items-center justify-center bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url('/bg/world.png')`,
+          backgroundImage: `url('/bg/edge.svg')`,
         }}
       >
         <div className="w-full max-w-md rounded-lg bg-white/80 p-6 shadow-md backdrop-blur-sm">
           <h2 className="mb-6 text-center text-2xl font-bold text-gray-800">
-            Confirm Your Email
+            Claim Your Coupon
           </h2>
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             <div>
@@ -102,7 +160,7 @@ const CouponForm = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="mt-1 w-full rounded-md border-gray-300 focus:border-green-500 focus:ring-green-500"
+                className="mt-1 w-full bg-white rounded-md focus:border-green-500 focus:ring-green-500"
               />
             </div>
             {message && <p className="text-green-600 text-sm">{message}</p>}
@@ -111,7 +169,7 @@ const CouponForm = () => {
               type="submit"
               disabled={isLoading}
               className="w-full rounded-md bg-black text-white hover:bg-gray-900 focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              style={{ border: "2px solid #22c55e" }}
+              style={{ border: "0.5px solid #22c55e" }}
             >
               {isLoading ? "Searching..." : "Confirm Email"}
             </Button>
@@ -119,7 +177,6 @@ const CouponForm = () => {
         </div>
       </div>
 
-      {/* Dialog for Name and Phone Number */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -174,7 +231,7 @@ const CouponForm = () => {
                 className="bg-black text-white hover:bg-gray-900"
                 style={{ border: "2px solid #22c55e" }}
               >
-                {isLoading ? "Submitting..." : "Submit"}
+                {isLoading ? "Claiming..." : "Claim Coupon"}
               </Button>
             </DialogFooter>
           </form>
