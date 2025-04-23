@@ -1,10 +1,10 @@
 import React from 'react';
-import Banner from './banner/Banner';
+import CouponForm from './form/CouponForm';
 
 const Landing = () => {
   return (
     <div>
-        <Banner />
+        <CouponForm />
     </div>
   )
 }

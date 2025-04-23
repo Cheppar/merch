@@ -1,13 +1,11 @@
 "use client";
 import React, {useState} from 'react';
-import CouponForm from '@/app/_components/form/CouponForm';
+import Banner from '../../_components/banner/Banner';
 
 const page = () => {
   return (
-    <div
-   
-    >
-        <CouponForm /> 
+    <div>
+        <Banner/>
     </div>
   )
 }
