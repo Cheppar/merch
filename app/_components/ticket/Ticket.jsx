@@ -5,14 +5,11 @@ import { supabase } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageCircle } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const searchParams = useSearchParams();
-  const phone = searchParams.get("phone"); // Get phone from query params
 
   // Event details (hardcoded; fetch from Supabase if needed)
   const eventDetails = {
@@ -22,16 +19,23 @@ export default function Orders() {
     bgImage: "/ticket-bg.jpg", // Background image in /public
   };
 
-  // Fetch paid reservations
+  // Fetch paid reservations for the authenticated user
   useEffect(() => {
-    if (!phone) {
-      setError("Please provide a phone number to view your orders.");
-      setLoading(false);
-      return;
-    }
-
     async function fetchOrders() {
       try {
+        // Get the authenticated user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          throw new Error("Please log in to view your orders.");
+        }
+
+        // Assume phone is stored in user metadata or profiles table
+        const phone = user.user_metadata?.phone;
+        if (!phone) {
+          throw new Error("Phone number not found in user profile.");
+        }
+
+        // Fetch reservations for the user's phone
         const { data, error } = await supabase
           .from("reservations")
           .select("id, name, tickets, external_reference, phone")
@@ -52,7 +56,7 @@ export default function Orders() {
     }
 
     fetchOrders();
-  }, [phone]);
+  }, []);
 
   // Share ticket via WhatsApp
   const shareViaWhatsApp = (order) => {
@@ -81,7 +85,7 @@ export default function Orders() {
           <div className="grid gap-6 md:grid-cols-2">
             {orders.length === 0 ? (
               <p className="text-center text-gray-600 col-span-full">
-                No purchased tickets found for this phone number.
+                No purchased tickets found.
               </p>
             ) : (
               orders.map((order) => (
