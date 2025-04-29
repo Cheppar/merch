@@ -1,64 +1,55 @@
+// app/orders/page.js
 "use client";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { MessageCircle } from "lucide-react";
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [phone, setPhone] = useState("");
 
-  // Event details (hardcoded; fetch from Supabase if needed)
   const eventDetails = {
     name: "LiveWire Event",
     date: "2025-05-10",
     venue: "Nairobi Convention Center",
-    bgImage: "/ticket-bg.jpg", // Background image in /public
+    bgImage: "/ticket-bg.jpg",
   };
 
-  // Fetch paid reservations for the authenticated user
-  useEffect(() => {
-    async function fetchOrders() {
-      try {
-        // Get the authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-          throw new Error("Please log in to view your orders.");
-        }
-
-        // Assume phone is stored in user metadata or profiles table
-        const phone = user.user_metadata?.phone;
-        if (!phone) {
-          throw new Error("Phone number not found in user profile.");
-        }
-
-        // Fetch reservations for the user's phone
-        const { data, error } = await supabase
-          .from("reservations")
-          .select("id, name, tickets, external_reference, phone")
-          .eq("phone", phone)
-          .eq("status", "Paid")
-          .order("id", { ascending: false });
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        setOrders(data || []);
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setLoading(false);
-      }
+  const fetchOrders = async () => {
+    if (!phone) {
+      setError("Please enter your phone number.");
+      return;
     }
 
-    fetchOrders();
-  }, []);
+    setLoading(true);
+    setError(null);
 
-  // Share ticket via WhatsApp
+    try {
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("id, name, tickets, external_reference, phone")
+        .eq("phone", phone)
+        .eq("status", "Paid")
+        .order("id", { ascending: false });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setOrders(data || []);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
   const shareViaWhatsApp = (order) => {
     const message = `Your ticket for ${eventDetails.name} is confirmed!\nName: ${order.name}\nAdmits: ${order.tickets} ${order.tickets === 1 ? "Person" : "People"}\nDate: ${eventDetails.date}\nVenue: ${eventDetails.venue}\nRef: ${order.external_reference}`;
     const encodedMessage = encodeURIComponent(message);
@@ -73,69 +64,76 @@ export default function Orders() {
           Your Purchased Tickets
         </h1>
 
-        {loading && (
-          <div className="flex justify-center">
-            <div className="w-8 h-8 border-4 border-t-green-500 border-gray-200 rounded-full animate-spin"></div>
-          </div>
-        )}
+        <div className="mb-6 flex gap-4">
+          <Input
+            type="tel"
+            placeholder="Enter phone number (e.g., +254722XXXXXX)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full"
+          />
+          <Button onClick={fetchOrders} disabled={loading}>
+            {loading ? "Loading..." : "Fetch Tickets"}
+          </Button>
+        </div>
 
         {error && <p className="text-red-600 text-center text-sm sm:text-base">{error}</p>}
 
-        {!loading && !error && (
+        {!loading && orders.length === 0 && !error && (
+          <p className="text-center text-gray-600">
+            No purchased tickets found for this phone number.
+          </p>
+        )}
+
+        {!loading && orders.length > 0 && (
           <div className="grid gap-6 md:grid-cols-2">
-            {orders.length === 0 ? (
-              <p className="text-center text-gray-600 col-span-full">
-                No purchased tickets found.
-              </p>
-            ) : (
-              orders.map((order) => (
-                <Card
-                  key={order.id}
-                  className="relative overflow-hidden bg-cover bg-center shadow-lg"
-                  style={{ backgroundImage: `url(${eventDetails.bgImage})` }}
-                >
-                  <div className="absolute inset-0 bg-black/50" /> {/* Overlay for readability */}
-                  <CardHeader className="relative z-10 text-center">
-                    <CardTitle className="text-lg sm:text-xl text-white">
-                      {eventDetails.name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="relative z-10 space-y-4 text-center text-white">
-                    <div>
-                      <p className="text-sm font-medium">Name</p>
-                      <p className="text-base font-semibold">{order.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Admits</p>
-                      <p className="text-base font-semibold">
-                        {order.tickets} {order.tickets === 1 ? "Person" : "People"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Date</p>
-                      <p className="text-base">{eventDetails.date}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Venue</p>
-                      <p className="text-base">{eventDetails.venue}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Reference</p>
-                      <p className="text-base">{order.external_reference}</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full sm:w-auto bg-white text-black hover:bg-gray-200"
-                      onClick={() => shareViaWhatsApp(order)}
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Share via WhatsApp
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+            {orders.map((order) => (
+              <Card
+                key={order.id}
+                className="relative overflow-hidden bg-cover bg-center shadow-lg"
+                style={{ backgroundImage: `url(${eventDetails.bgImage})` }}
+              >
+                <div className="absolute inset-0 bg-black/50" />
+                <CardHeader className="relative z-10 text-center">
+                  <CardTitle className="text-lg sm:text-xl text-white">
+                    {eventDetails.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="relative z-10 space-y-4 text-center text-white">
+                  <div>
+                    <p className="text-sm font-medium">Name</p>
+                    <p className="text-base font-semibold">{order.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Admits</p>
+                    <p className="text-base font-semibold">
+                      {order.tickets} {order.tickets === 1 ? "Person" : "People"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Date</p>
+                    <p className="text-base">{eventDetails.date}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Venue</p>
+                    <p className="text-base">{eventDetails.venue}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Reference</p>
+                    <p className="text-base">{order.external_reference}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto bg-white text-black hover:bg-gray-200"
+                    onClick={() => shareViaWhatsApp(order)}
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Share via WhatsApp
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </div>
