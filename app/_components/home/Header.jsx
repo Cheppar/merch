@@ -19,7 +19,8 @@ import { cn } from "@/lib/utils";
 // Navigation links for the desktop
 const navigation = [
   { name: 'Home', href: '/' },
-  { name: 'Banners', href: '/about' }  
+  { name: 'Banners', href: '/about' },
+  { name: 'Events', href: '/events' } 
 ];
 
 function Header() {
