@@ -236,7 +236,7 @@ export default function Reserve() {
                   type="tel"
                   placeholder="e.g., 0722XXXXXX"
                   value={phoneNumber}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
                   required
                   className="mt-1 w-full"
                 />
