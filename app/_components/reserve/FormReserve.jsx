@@ -119,7 +119,7 @@ export default function Reserve() {
       // Query gaspayments table for payment status
       const { data: paymentData, error: paymentError } = await supabase
         .from("gaspayments")
-        .select("status, mpesacode")
+        .select("status, transaction_code")
         .eq("user_reference", userReference)
         .single();
 
@@ -133,17 +133,17 @@ export default function Reserve() {
         return;
       }
 
-      // Check if payment is successful (adjust status check based on gaspayments schema)
+      // Check if payment is successful
       if (paymentData.status === "Paid" || paymentData.status === true) {
         setIsProcessing(false);
-        const mpesaReference = paymentData.mpesacode;
+        const transactionCode = paymentData.transaction_code;
 
         // Update reservations table
         const { error: updateError } = await supabase
           .from("reservations")
           .update({
             status: "Paid",
-            mpesacode: mpesaReference,
+            mpesacode: transactionCode,
           })
           .eq("external_reference", userReference);
 
@@ -236,7 +236,7 @@ export default function Reserve() {
                   type="tel"
                   placeholder="e.g., 0722XXXXXX"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => setName(e.target.value)}
                   required
                   className="mt-1 w-full"
                 />
