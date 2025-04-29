@@ -23,7 +23,7 @@ export default function Reserve() {
   const [error, setError] = useState(null);
   const [showPaymentSection, setShowPaymentSection] = useState(false);
 
-  const ticketPrice = 1000; // Price per ticket in KES (adjust as needed)
+  const ticketPrice = 1; // Price per ticket in KES (adjust as needed)
   const totalAmount = parseInt(tickets) * ticketPrice;
   const invoice = `INV-${Date.now()}`; // Generate unique invoice ID (replace with your logic)
 
