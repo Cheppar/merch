@@ -23,9 +23,9 @@ export default function Reserve() {
   const [error, setError] = useState(null);
   const [showPaymentSection, setShowPaymentSection] = useState(false);
 
-  const ticketPrice = 1; // Price per ticket in KES (adjust as needed)
+  const ticketPrice = 1; // Price per ticket in KES
   const totalAmount = parseInt(tickets) * ticketPrice;
-  const invoice = `INV-${Date.now()}`; // Generate unique invoice ID (replace with your logic)
+  const invoice = `INV-${Date.now()}`; // Unique invoice ID
 
   const handleCheckout = () => {
     if (!name || !tickets) {
@@ -33,7 +33,7 @@ export default function Reserve() {
       return;
     }
     setError(null);
-    setShowPaymentSection(true); // Show phone number input for M-Pesa
+    setShowPaymentSection(true);
   };
 
   const handlePayment = async () => {
@@ -42,7 +42,6 @@ export default function Reserve() {
       return;
     }
 
-    // Validate phone number (basic Kenyan format)
     const phoneRegex = /^(?:\+254|0)7\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
       setError("Please enter a valid Kenyan phone number (e.g., 0722XXXXXX or +254722XXXXXX)");
@@ -55,48 +54,61 @@ export default function Reserve() {
 
     const paymentData = {
       phone_number: phoneNumber.startsWith("0") ? `+254${phoneNumber.slice(1)}` : phoneNumber,
-      amount: totalAmount, // Use totalAmount instead of 1
+      amount: totalAmount,
       external_reference: invoice,
     };
 
     try {
-      // Initiate M-Pesa STK push via Payhero
-      const response = await fetch("https://cheppar.co.ke/cheppar/authPay.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(paymentData),
-      });
+      // Initiate M-Pesa STK push
+      const response = await fetch(
+        // Use proxy if CORS issues: "/api/proxy/authPay"
+        "https://cheppar.co.ke/cheppar/authPay.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(paymentData),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! Status: ${response.status}, Response: ${errorText}`);
+      }
 
       const responseData = await response.json();
       console.log("Handle Payment Response:", responseData);
 
-      if (responseData.success && responseData.status === "QUEUED") {
-        setMessage("Please wait for an M-Pesa prompt.");
-        // Save reservation to Supabase with pending status
-        const { error: supabaseError } = await supabase.from("reservations").insert({
-          event_id: "lw14", // Replace with your event ID
-          name,
-          tickets: parseInt(tickets),
-          phone: phoneNumber,
-          status: "pending",
-          amount: totalAmount,
-          mpesacode: null, // Will be updated later
-        });
-
-        if (supabaseError) throw supabaseError;
-
-        // Poll payment status
-        setTimeout(() => {
-          pollPaymentStatus(invoice);
-        }, 5000);
-      } else {
-        setIsProcessing(false);
-        setError("Payment failed. Please check your balance and try again.");
+      if (!responseData.success || responseData.status !== "QUEUED") {
+        throw new Error(responseData.message || "Payment initiation failed.");
       }
+
+      setMessage("Please wait for an M-Pesa prompt.");
+
+      // Save reservation to Supabase
+      const { error: supabaseError } = await supabase.from("reservations").insert({
+        event_id: "lw14",
+        name,
+        tickets: parseInt(tickets),
+        phone: phoneNumber,
+        status: "pending",
+        amount: totalAmount,
+        mpesacode: null,
+        external_reference: invoice,
+      });
+
+      if (supabaseError) {
+        console.error("Supabase insert error:", supabaseError);
+        throw new Error(`Failed to save reservation: ${supabaseError.message}`);
+      }
+
+      // Poll payment status
+      setTimeout(() => {
+        pollPaymentStatus(invoice);
+      }, 5000);
     } catch (err) {
       console.error("Error processing payment:", err);
       setIsProcessing(false);
-      setError("There was an error processing your payment request.");
+      setError(err.message || "There was an error processing your payment request.");
     }
   };
 
@@ -109,12 +121,19 @@ export default function Reserve() {
 
     try {
       const response = await fetch(
+        // Use proxy if CORS issues: `/api/proxy/paymentStatus?user_reference=${userReference}`
         `https://cheppar.co.ke/cheppar/payment_status.php?user_reference=${userReference}`
       );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! Status: ${response.status}, Response: ${errorText}`);
+      }
+
       const responseData = await response.json();
       console.log("Payment Status Response:", responseData);
 
-      if (responseData.success && responseData.payment.status) {
+      if (responseData.success && responseData.payment?.status) {
         setIsProcessing(false);
         const mpesaReference = responseData.payment.mpesa_reference;
 
@@ -122,17 +141,19 @@ export default function Reserve() {
         const { error: updateError } = await supabase
           .from("reservations")
           .update({
-            status: "confirmed",
+            status: "Paid",
             mpesacode: mpesaReference,
           })
-          .eq("phone", phoneNumber)
-          .eq("event_id", "lw14");
+          .eq("external_reference", userReference);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error("Supabase update error:", updateError);
+          throw new Error(`Failed to update reservation: ${updateError.message}`);
+        }
 
-        setMessage("Payment processed successfully!");
+        setMessage("Your payment has been processed successfully.");
         setTimeout(() => {
-          router.push("/orders"); // Redirect to orders page
+          router.push("/orders");
         }, 2000);
       } else {
         setTimeout(() => {
@@ -142,7 +163,7 @@ export default function Reserve() {
     } catch (error) {
       console.error("Error checking payment status:", error);
       setIsProcessing(false);
-      setError("There was an error checking your payment status.");
+      setError(error.message || "There was an error checking your payment status.");
     }
   };
 
@@ -156,7 +177,6 @@ export default function Reserve() {
           Reserve Your Seat
         </h2>
         <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
-          {/* Name Input */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700">
               Name
@@ -171,8 +191,6 @@ export default function Reserve() {
               className="mt-1 w-full"
             />
           </div>
-
-          {/* Number of Tickets Selector */}
           <div>
             <label htmlFor="tickets" className="block text-sm font-medium text-gray-700">
               Number of Tickets
@@ -190,14 +208,10 @@ export default function Reserve() {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Total Amount */}
           <div>
             <p className="text-lg font-medium text-gray-700">Total Amount</p>
             <p className="text-gray-600">KES {totalAmount.toLocaleString()}</p>
           </div>
-
-          {/* Checkout Button */}
           {!showPaymentSection && (
             <Button
               type="button"
@@ -209,8 +223,6 @@ export default function Reserve() {
               Checkout
             </Button>
           )}
-
-          {/* Payment Section (Phone Number + M-Pesa) */}
           {showPaymentSection && (
             <div className="space-y-4">
               <div>
@@ -244,10 +256,13 @@ export default function Reserve() {
               </Button>
             </div>
           )}
-
-          {/* Messages */}
           {message && <p className="text-green-600 text-sm text-center">{message}</p>}
           {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+          {isProcessing && (
+            <div className="flex justify-center">
+              <div className="w-6 h-6 border-4 border-t-green-500 border-gray-200 rounded-full animate-spin"></div>
+            </div>
+          )}
         </form>
       </div>
     </div>
