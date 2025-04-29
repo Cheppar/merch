@@ -60,15 +60,11 @@ export default function Reserve() {
 
     try {
       // Initiate M-Pesa STK push
-      const response = await fetch(
-        // Use proxy if CORS issues: "/api/proxy/authPay"
-        "https://cheppar.co.ke/cheppar/authPay.php",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(paymentData),
-        }
-      );
+      const response = await fetch("https://cheppar.co.ke/cheppar/authPay.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentData),
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -115,29 +111,34 @@ export default function Reserve() {
   const pollPaymentStatus = async (userReference, retryCount = 15, interval = 10000) => {
     if (retryCount <= 0) {
       setIsProcessing(false);
-      setError("Payment failed. Check your PIN and balance.");
+      setError("Payment verification timed out. Please check your M-Pesa balance or try again.");
       return;
     }
 
     try {
-      const response = await fetch(
-        // Use proxy if CORS issues: `/api/proxy/paymentStatus?user_reference=${userReference}`
-        `https://cheppar.co.ke/cheppar/payment_status.php?user_reference=${userReference}`
-      );
+      // Query gaspayments table for payment status
+      const { data: paymentData, error: paymentError } = await supabase
+        .from("gaspayments")
+        .select("status, mpesacode")
+        .eq("user_reference", userReference)
+        .single();
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! Status: ${response.status}, Response: ${errorText}`);
+      console.log("GasPayments Query Response:", { paymentData, paymentError });
+
+      if (paymentError || !paymentData) {
+        console.warn("Payment not found or error:", paymentError?.message || "No payment record");
+        setTimeout(() => {
+          pollPaymentStatus(userReference, retryCount - 1, interval);
+        }, interval);
+        return;
       }
 
-      const responseData = await response.json();
-      console.log("Payment Status Response:", responseData);
-
-      if (responseData.success && responseData.payment?.status) {
+      // Check if payment is successful (adjust status check based on gaspayments schema)
+      if (paymentData.status === "Paid" || paymentData.status === true) {
         setIsProcessing(false);
-        const mpesaReference = responseData.payment.mpesa_reference;
+        const mpesaReference = paymentData.mpesacode;
 
-        // Update reservation with status and M-Pesa code
+        // Update reservations table
         const { error: updateError } = await supabase
           .from("reservations")
           .update({
@@ -156,6 +157,7 @@ export default function Reserve() {
           router.push("/orders");
         }, 2000);
       } else {
+        // Payment not yet completed, retry
         setTimeout(() => {
           pollPaymentStatus(userReference, retryCount - 1, interval);
         }, interval);
@@ -173,14 +175,10 @@ export default function Reserve() {
       style={{ backgroundImage: `url('/bg/edge.svg')` }}
     >
       <div className="w-full max-w-md rounded-lg bg-white/80 p-6 shadow-md backdrop-blur-sm">
-        <h2 className="mb-6 text-center text-2xl font-bold text-gray-800">
-          Reserve Your Seat
-        </h2>
+        <h2 className="mb-6 text-center text-2xl font-bold text-gray-800">Reserve Your Seat</h2>
         <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              Name
-            </label>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
             <Input
               id="name"
               type="text"
@@ -201,9 +199,7 @@ export default function Reserve() {
               </SelectTrigger>
               <SelectContent>
                 {[1, 2, 3, 4, 5].map((num) => (
-                  <SelectItem key={num} value={num.toString()}>
-                    {num}
-                  </SelectItem>
+                  <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
