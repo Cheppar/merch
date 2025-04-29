@@ -5,14 +5,14 @@ import { supabase } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageCircle } from "lucide-react";
-import { useRouter } from "next/router";
+import { useSearchParams } from "next/navigation";
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const router = useRouter();
-  const { phone } = router.query; // Phone number via query param
+  const searchParams = useSearchParams();
+  const phone = searchParams.get("phone"); // Get phone from query params
 
   // Event details (hardcoded; fetch from Supabase if needed)
   const eventDetails = {

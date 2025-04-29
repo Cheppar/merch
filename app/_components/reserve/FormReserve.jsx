@@ -154,7 +154,7 @@ export default function Reserve() {
 
         setMessage("Your payment has been processed successfully.");
         setTimeout(() => {
-          router.push("/orders");
+          router.push("/ticket");
         }, 2000);
       } else {
         // Payment not confirmed, retry
