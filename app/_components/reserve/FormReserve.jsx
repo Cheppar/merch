@@ -11,18 +11,21 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/utils/supabase/client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Reserve() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [tickets, setTickets] = useState("1");
-  const [phone, setPhone] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [showPaymentSection, setShowPaymentSection] = useState(false);
 
   const ticketPrice = 1000; // Price per ticket in KES (adjust as needed)
   const totalAmount = parseInt(tickets) * ticketPrice;
+  const invoice = `INV-${Date.now()}`; // Generate unique invoice ID (replace with your logic)
 
   const handleCheckout = () => {
     if (!name || !tickets) {
@@ -33,72 +36,114 @@ export default function Reserve() {
     setShowPaymentSection(true); // Show phone number input for M-Pesa
   };
 
-  const handlePayment = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handlePayment = async () => {
+    if (!phoneNumber) {
+      setError("Please enter your phone number.");
+      return;
+    }
+
+    // Validate phone number (basic Kenyan format)
+    const phoneRegex = /^(?:\+254|0)7\d{8}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      setError("Please enter a valid Kenyan phone number (e.g., 0722XXXXXX or +254722XXXXXX)");
+      return;
+    }
+
+    setIsProcessing(true);
     setMessage(null);
     setError(null);
 
-    // Validate phone number (basic Kenyan format check)
-    const phoneRegex = /^(?:\+254|0)7\d{8}$/;
-    if (!phoneRegex.test(phone)) {
-      setError("Please enter a valid Kenyan phone number (e.g., 0716XXXXXX or +254716XXXXXX)");
-      setIsLoading(false);
+    const paymentData = {
+      phone_number: phoneNumber.startsWith("0") ? `+254${phoneNumber.slice(1)}` : phoneNumber,
+      amount: totalAmount, // Use totalAmount instead of 1
+      external_reference: invoice,
+    };
+
+    try {
+      // Initiate M-Pesa STK push via Payhero
+      const response = await fetch("https://cheppar.co.ke/cheppar/authPay.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentData),
+      });
+
+      const responseData = await response.json();
+      console.log("Handle Payment Response:", responseData);
+
+      if (responseData.success && responseData.status === "QUEUED") {
+        setMessage("Please wait for an M-Pesa prompt.");
+        // Save reservation to Supabase with pending status
+        const { error: supabaseError } = await supabase.from("reservations").insert({
+          event_id: "lw14", // Replace with your event ID
+          name,
+          tickets: parseInt(tickets),
+          phone: phoneNumber,
+          status: "pending",
+          amount: totalAmount,
+          mpesacode: null, // Will be updated later
+        });
+
+        if (supabaseError) throw supabaseError;
+
+        // Poll payment status
+        setTimeout(() => {
+          pollPaymentStatus(invoice);
+        }, 5000);
+      } else {
+        setIsProcessing(false);
+        setError("Payment failed. Please check your balance and try again.");
+      }
+    } catch (err) {
+      console.error("Error processing payment:", err);
+      setIsProcessing(false);
+      setError("There was an error processing your payment request.");
+    }
+  };
+
+  const pollPaymentStatus = async (userReference, retryCount = 15, interval = 10000) => {
+    if (retryCount <= 0) {
+      setIsProcessing(false);
+      setError("Payment failed. Check your PIN and balance.");
       return;
     }
 
     try {
-      // Save reservation to Supabase
-      const { error: supabaseError } = await supabase.from("reservations").insert({
-        event_id: "lw14", // Replace with your event ID
-        name,
-        tickets: parseInt(tickets),
-        phone,
-        status: "pending", // Update to "confirmed" after payment
-        amount: totalAmount,
-      });
+      const response = await fetch(
+        `https://cheppar.co.ke/cheppar/payment_status.php?user_reference=${userReference}`
+      );
+      const responseData = await response.json();
+      console.log("Payment Status Response:", responseData);
 
-      if (supabaseError) throw supabaseError;
+      if (responseData.success && responseData.payment.status) {
+        setIsProcessing(false);
+        const mpesaReference = responseData.payment.mpesa_reference;
 
-      // Simulate M-Pesa STK push (replace with actual API call)
-      const formattedPhone = phone.startsWith("0") ? `+254${phone.slice(1)}` : phone;
-      const paymentResponse = await initiateMpesaPayment(formattedPhone, totalAmount);
-
-      if (paymentResponse.success) {
-        // Update reservation status to confirmed
-        await supabase
+        // Update reservation with status and M-Pesa code
+        const { error: updateError } = await supabase
           .from("reservations")
-          .update({ status: "confirmed" })
-          .eq("phone", phone)
+          .update({
+            status: "confirmed",
+            mpesacode: mpesaReference,
+          })
+          .eq("phone", phoneNumber)
           .eq("event_id", "lw14");
 
-        setMessage("Payment initiated successfully! Check your phone for the M-Pesa STK push.");
-        setName("");
-        setTickets("1");
-        setPhone("");
-        setShowPaymentSection(false);
-      } else {
-        throw new Error("Failed to initiate M-Pesa payment.");
-      }
-    } catch (err) {
-      console.error("Error processing reservation:", err);
-      setError("Error: " + err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        if (updateError) throw updateError;
 
-  // Placeholder for M-Pesa STK push API call
-  const initiateMpesaPayment = async (phone, amount) => {
-    // Replace with actual M-Pesa Daraja API integration
-    // Example: https://developer.safaricom.co.ke/APIs/STKPush
-    console.log(`Initiating M-Pesa STK push to ${phone} for KES ${amount}`);
-    // Simulate API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true }); // Simulate success
-      }, 1000);
-    });
+        setMessage("Payment processed successfully!");
+        setTimeout(() => {
+          router.push("/orders"); // Redirect to orders page
+        }, 2000);
+      } else {
+        setTimeout(() => {
+          pollPaymentStatus(userReference, retryCount - 1, interval);
+        }, interval);
+      }
+    } catch (error) {
+      console.error("Error checking payment status:", error);
+      setIsProcessing(false);
+      setError("There was an error checking your payment status.");
+    }
   };
 
   return (
@@ -123,8 +168,7 @@ export default function Reserve() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="mt-1 w-full bg-white "
-              style={{ border: "0.5px solidrgb(23, 25, 24)" }}
+              className="mt-1 w-full"
             />
           </div>
 
@@ -134,7 +178,7 @@ export default function Reserve() {
               Number of Tickets
             </label>
             <Select value={tickets} onValueChange={setTickets}>
-              <SelectTrigger className="mt-1 w-full bg-white/80">
+              <SelectTrigger className="mt-1 w-full">
                 <SelectValue placeholder="Select tickets" />
               </SelectTrigger>
               <SelectContent>
@@ -158,7 +202,7 @@ export default function Reserve() {
             <Button
               type="button"
               onClick={handleCheckout}
-              disabled={isLoading}
+              disabled={isProcessing}
               className="w-full rounded-md bg-black text-white hover:bg-gray-900"
               style={{ border: "0.5px solid #22c55e" }}
             >
@@ -170,34 +214,40 @@ export default function Reserve() {
           {showPaymentSection && (
             <div className="space-y-4">
               <div>
+                <p className="text-sm text-gray-600 text-center">
+                  An M-Pesa prompt of KES{" "}
+                  <span className="font-bold">{totalAmount.toLocaleString()}</span> will appear.
+                </p>
+              </div>
+              <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
                   Phone Number (M-Pesa)
                 </label>
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="e.g., 0716XXXXXX"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g., 0722XXXXXX"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
                   required
                   className="mt-1 w-full"
                 />
               </div>
               <Button
-                type="submit"
+                type="button"
                 onClick={handlePayment}
-                disabled={isLoading}
+                disabled={isProcessing}
                 className="w-full rounded-md bg-black text-white hover:bg-gray-900"
                 style={{ border: "0.5px solid #22c55e" }}
               >
-                {isLoading ? "Processing..." : "Pay with M-Pesa"}
+                {isProcessing ? "Processing..." : "Pay with M-Pesa"}
               </Button>
             </div>
           )}
 
           {/* Messages */}
-          {message && <p className="text-green-600 text-sm">{message}</p>}
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+          {message && <p className="text-green-600 text-sm text-center">{message}</p>}
+          {error && <p className="text-red-600 text-sm text-center">{error}</p>}
         </form>
       </div>
     </div>
