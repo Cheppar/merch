@@ -116,34 +116,34 @@ export default function Reserve() {
     }
 
     try {
-      // Query gaspayments table for payment status
+      // Query gaspayments table for payment
       const { data: paymentData, error: paymentError } = await supabase
         .from("gaspayments")
-        .select("status, transaction_code")
+        .select("status, mpesa_reference")
         .eq("user_reference", userReference)
         .single();
 
       console.log("GasPayments Query Response:", { paymentData, paymentError });
 
       if (paymentError || !paymentData) {
-        console.warn("Payment not found or error:", paymentError?.message || "No payment record");
+        console.warn("Payment not found:", paymentError?.message || "No payment record");
         setTimeout(() => {
           pollPaymentStatus(userReference, retryCount - 1, interval);
         }, interval);
         return;
       }
 
-      // Check if payment is successful
-      if (paymentData.status === "Paid" || paymentData.status === true) {
+      // Check if payment exists and is successful
+      if (paymentData.status === true) {
         setIsProcessing(false);
-        const transactionCode = paymentData.transaction_code;
+        const mpesaReference = paymentData.mpesa_reference;
 
         // Update reservations table
         const { error: updateError } = await supabase
           .from("reservations")
           .update({
             status: "Paid",
-            mpesacode: transactionCode,
+            mpesacode: mpesaReference,
           })
           .eq("external_reference", userReference);
 
@@ -157,7 +157,7 @@ export default function Reserve() {
           router.push("/orders");
         }, 2000);
       } else {
-        // Payment not yet completed, retry
+        // Payment not confirmed, retry
         setTimeout(() => {
           pollPaymentStatus(userReference, retryCount - 1, interval);
         }, interval);
