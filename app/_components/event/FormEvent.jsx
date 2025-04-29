@@ -24,7 +24,7 @@ const FormEvent = () => {
 
   return (
     <div
-      className="flex min-h-screen bg-black items-center justify-center bg-cover bg-center bg-no-repeat"
+      className="px-4 sm:px-6 md:px-8 flex min-h-screen bg-black items-center justify-center bg-cover bg-center bg-no-repeat"
       style={{
         backgroundImage: `url('/bg/edge.svg')`,
       }}

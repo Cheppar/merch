@@ -171,7 +171,7 @@ export default function Reserve() {
 
   return (
     <div
-      className="flex min-h-screen bg-black items-center justify-center bg-cover bg-center bg-no-repeat"
+      className="flex px-4 sm:px-6 md:px-8 min-h-screen bg-black items-center justify-center bg-cover bg-center bg-no-repeat"
       style={{ backgroundImage: `url('/bg/edge.svg')` }}
     >
       <div className="w-full max-w-md rounded-lg bg-white/80 p-6 shadow-md backdrop-blur-sm">
