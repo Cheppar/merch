@@ -9,10 +9,10 @@ const FormEvent = () => {
     const router = useRouter();
 
     const event = {
-        name: "Rotary Club of Nakuru - TRF Dinner",
-        date: "May 22, 2025",
-        time: "19:00 PM - 22:00 PM",
-        location: "Rift Valley Sports club (Nakuru)",
+        name: "Book a Virtual E-Counselling Session",
+        // date: "May 22, 2025",
+        // time: "19:00 PM - 22:00 PM",
+        // location: "Virtual",
         description:
           "Join us for an exciting day of talks, workshops, and networking with the Rotary community!",
       };

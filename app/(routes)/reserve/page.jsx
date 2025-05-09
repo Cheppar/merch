@@ -5,6 +5,7 @@ const page = () => {
   return (
     <div className='mt-18'>
        <Reserve />
+       
     </div>
   )
 }
