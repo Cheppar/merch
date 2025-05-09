@@ -164,7 +164,7 @@ export default function BookSession() {
 
         setMessage("Your payment has been processed successfully.");
         setTimeout(() => {
-          router.push("/confirmation");
+          router.push("/confirmed");
         }, 2000);
       } else {
         setTimeout(() => {
