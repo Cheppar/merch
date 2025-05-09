@@ -75,7 +75,7 @@ export default function BookSession() {
 
     const paymentData = {
       phone_number: phoneNumber.startsWith("0") ? `+254${phoneNumber.slice(1)}` : phoneNumber,
-      amount: totalAmount,
+      amount: 1,
       external_reference: invoice,
     };
 
