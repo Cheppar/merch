@@ -22,9 +22,9 @@ const outfitLight = localFont({
 });
 
 export const metadata = {
-  title: "Supabase LW14 Codes",
+  title: "Speak Out",
   description:
-    "Redeem your LW14 codes",
+    "Counselling service",
     icons: {
       icon: "/ico.svg", // Use .svg or .ico here
     },
