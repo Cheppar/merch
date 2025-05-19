@@ -173,7 +173,7 @@ const CouponForm = () => {
       >
         <div className="w-full max-w-md rounded-lg bg-white/80 p-6 shadow-md backdrop-blur-sm">
           <h2 className="mb-6 text-center text-2xl font-bold text-gray-800">
-            Claim Your #LW14 Tshirt
+            Claim Your Counselling Coupon
           </h2>
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             <div>

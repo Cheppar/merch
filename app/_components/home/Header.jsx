@@ -56,16 +56,16 @@ function Header() {
               className="flex items-center gap-2"
               aria-label="WikiBanner"
             >
-              <Image
+              <span className="font-display font-medium text-xl tracking-tight">
+                Speak<span className="font-light text-coffee-400"> Out</span> 
+              </span>
+              {/* <Image
                 src="/ico.svg"
                 alt="Supabase Coupons Logo"
                 width={20}
                 height={20}
                 className="object-contain"
-              />
-              <span className="font-display font-medium text-xl tracking-tight">
-                Supabase<span className="font-light text-coffee-400"> Coupons</span> 
-              </span>
+              /> */}
             </a>
           </div>
 
