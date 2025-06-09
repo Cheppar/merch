@@ -9,12 +9,12 @@ const FormEvent = () => {
     const router = useRouter();
 
     const event = {
-        name: "Book a Virtual E-Counselling Session",
-        // date: "May 22, 2025",
-        // time: "19:00 PM - 22:00 PM",
-        // location: "Virtual",
+        name: "ETH Nakuru  Meetup",
+        date: "July 30, 2025",
+        time: "FREE",
+        location: "Top Secret Venue , Nakuru",
         description:
-          "Join us for an exciting day of talks, workshops, and networking with the Rotary community!",
+          "Join us for an exciting day of talks, workshops, and networking and snacking  community!",
       };
     
       // Handle navigation to reservation page
@@ -26,7 +26,7 @@ const FormEvent = () => {
     <div
       className="px-4 sm:px-6 md:px-8 flex min-h-screen bg-black items-center justify-center bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: `url('/bg/edge.svg')`,
+        backgroundImage: `url('/event/nakurueth.png')`,
       }}
     >
       <div className="w-full max-w-md rounded-lg bg-white/80 p-6 shadow-md backdrop-blur-sm">
@@ -39,7 +39,7 @@ const FormEvent = () => {
             <p className="text-gray-600">{event.date}</p>
           </div>
           <div>
-            <p className="text-lg font-medium text-gray-700">Time</p>
+            <p className="text-lg font-medium text-gray-700">Entry</p>
             <p className="text-gray-600">{event.time}</p>
           </div>
           <div>
