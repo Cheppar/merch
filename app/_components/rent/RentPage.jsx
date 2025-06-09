@@ -5,28 +5,27 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase/client';
 
-const FormEvent = () => {
+const RentPage = () => {
     const router = useRouter();
 
     const event = {
-        name: "ETH Nakuru Meetup",
-        date: "July 30, 2025",
-        time: "FREE",
-        location: "Top Secret Venue , Nakuru",
-        description:
-          "Join us for an exciting day of talks, workshops, and networking and snacking  community!",
+        name: "Rent Suite",
+        date: "MnDee",
+        time: "Mark n Dee",
+        location: "White House",
+        description: "Bill Payments as per contract"
       };
     
       // Handle navigation to reservation page
       const handleReserveSeat = () => {
-        router.push("/reserve"); // Replace with your actual reservation route
+        router.push("/pay"); // Replace with your actual reservation route
       };
 
   return (
     <div
       className="px-4 sm:px-6 md:px-8 flex min-h-screen bg-black items-center justify-center bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: `url('/event/nakurueth.png')`,
+        backgroundImage: `url('/bg/edge.svg')`,
       }}
     >
       <div className="w-full max-w-md rounded-lg bg-white/80 p-6 shadow-md backdrop-blur-sm">
@@ -34,12 +33,9 @@ const FormEvent = () => {
           {event.name}
         </h2>
         <div className="space-y-4">
+         
           <div>
-            <p className="text-lg font-medium text-gray-700">Date</p>
-            <p className="text-gray-600">{event.date}</p>
-          </div>
-          <div>
-            <p className="text-lg font-medium text-gray-700">Entry</p>
+            <p className="text-lg font-medium text-gray-700">Apartment</p>
             <p className="text-gray-600">{event.time}</p>
           </div>
           <div>
@@ -63,4 +59,4 @@ const FormEvent = () => {
   )
 }
 
-export default FormEvent
+export default RentPage
