@@ -1,10 +1,12 @@
 import React from 'react';
 import Reserve from '@/app/_components/reserve/FormReserve';
+import Nakurueth from '@/app/_components/reserve/Nakurueth';
 
 const page = () => {
   return (
-    <div className='mt-18'>
-       <Reserve />
+    <div className='mt-28'>
+       {/* <Reserve /> */}
+       <Nakurueth/>
        
     </div>
   )
