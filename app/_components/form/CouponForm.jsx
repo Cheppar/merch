@@ -13,68 +13,75 @@ import React, { useState } from "react";
 import { supabase } from "../../../utils/supabase/client";
 
 const CouponForm = () => {
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [claimedEmails, setClaimedEmails] = useState(new Set()); // Track claimed emails
+  const [location, setLocation] = useState("");
+  const [claimedPhones, setClaimedPhones] = useState(new Set());
 
   const resetForm = () => {
+    setPhone("");
     setEmail("");
     setMessage(null);
     setError(null);
     setName("");
-    setPhone("");
+    setLocation("");
     setIsLoading(false);
   };
 
-  const handleEmailSubmit = async (e) => {
+  const handlePhoneSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
     setError(null);
     setIsLoading(true);
 
+    // Normalize phone number to match database format (e.g., 254716813545)
+    let normalizedPhone = phone.replace(/[\s+]/g, "");
+    if (normalizedPhone.startsWith("0")) {
+      normalizedPhone = "254" + normalizedPhone.slice(1);
+    } else if (!normalizedPhone.startsWith("254")) {
+      normalizedPhone = "254" + normalizedPhone;
+    }
+
     try {
       const { data, error } = await supabase
-        .from("merch")
-        .select("email, status, code")
-        .eq("email", email)
+        .from("merchembulw15")
+        .select("status, code, contact")
+        .eq("contact", normalizedPhone)
         .maybeSingle();
 
       if (error) throw error;
 
       if (data) {
         if (data.status === "claimed") {
-          if (claimedEmails.has(email)) {
-            // If email was already checked once, block further attempts
+          if (claimedPhones.has(normalizedPhone)) {
             setError(
-              "This email has already claimed a coupon and cannot be checked again."
+              "This phone number has already claimed a coupon and cannot be checked again."
             );
             setIsLoading(false);
             return;
           }
-          // Allow one more check for claimed email
           setMessage(
-            "Email has already claimed a coupon. Please provide your details to resend the coupon code."
+            "Phone number has already claimed a coupon. Please provide your details to resend the coupon code."
           );
           setIsDialogOpen(true);
-          setClaimedEmails((prev) => new Set(prev).add(email)); // Mark email as checked
+          setClaimedPhones((prev) => new Set(prev).add(normalizedPhone));
         } else {
-          // Unclaimed email, proceed normally
-          setMessage("Email found! Please provide your details.");
+          setMessage("Phone number found! Please provide your details.");
           setIsDialogOpen(true);
         }
       } else {
         setError(
-          "Your Email is missing, You did not provide your email or a typo. Contact Godfrey."
+          "Your phone number is missing, you did not provide your phone number or there is a typo. Contact Godfrey."
         );
       }
     } catch (err) {
       console.error("Error querying merch table:", err);
-      setError("An error occurred while searching for the email.");
+      setError("An error occurred while searching for the phone number.");
     } finally {
       setIsLoading(false);
     }
@@ -82,15 +89,11 @@ const CouponForm = () => {
 
   const sendWhatsAppMessage = async (phone, code) => {
     try {
-      const formattedPhone = phone.replace(/\s/g, "").startsWith("+")
-        ? phone.replace(/\s/g, "")
-        : `+254${phone.replace(/\s/g, "")}`;
-
-      const message = `Thank you for claiming your Supabase LW14 coupon! 🎉\n\nHere is your LW14 T-Shirt Coupon Code: ${code}\nCheckout here: https://supabase.store/products/supalaunchweek14-dark-mode-tee \n \n For support, contact: +254 716 813 545 \n Support on X: https://x.com/chepparing\n\n Let's build with Supabase!`;
+      const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
+      const message = `Thank you for claiming your Supabase LW15 coupon! 🎉\n\nHere is your LW15 T-Shirt Coupon Code: ${code}\nCheckout here: https://supabase.store/ \n \n For support, contact: +254 716 813 545 \n Support on X: https://x.com/chepparing\n\n Let's build with Supabase!`;
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(
         message
       )}`;
-
       window.open(whatsappUrl, "_blank");
       return true;
     } catch (err) {
@@ -104,31 +107,39 @@ const CouponForm = () => {
     setIsLoading(true);
 
     try {
-      // Get the coupon code and status
+      // Normalize phone number to match database format (e.g., 254716813545)
+      let normalizedPhone = phone.replace(/[\s+]/g, "");
+      if (normalizedPhone.startsWith("0")) {
+        normalizedPhone = "254" + normalizedPhone.slice(1);
+      } else if (!normalizedPhone.startsWith("254")) {
+        normalizedPhone = "254" + normalizedPhone;
+      }
+
+      console.log("Querying with phone:", normalizedPhone);
+
       const { data: couponData } = await supabase
-        .from("merch")
+        .from("merchembulw15")
         .select("code, status")
-        .eq("email", email)
+        .eq("contact", normalizedPhone)
         .single();
 
       if (!couponData?.code) {
         throw new Error("No coupon code found");
       }
 
-      // Update name and phone (status remains "claimed" if already claimed)
       const { error } = await supabase
-        .from("merch")
+        .from("merchembulw15")
         .update({
           name,
-          phone,
+          email,
+          location,
           status: couponData.status === "claimed" ? "claimed" : "claimed",
         })
-        .eq("email", email);
+        .eq("contact", normalizedPhone);
 
       if (error) throw error;
 
-      // Send WhatsApp message
-      const messageSent = await sendWhatsAppMessage(phone, couponData.code);
+      const messageSent = await sendWhatsAppMessage(normalizedPhone, couponData.code);
 
       if (messageSent) {
         setMessage(
@@ -173,23 +184,24 @@ const CouponForm = () => {
       >
         <div className="w-full max-w-md rounded-lg bg-white/80 p-6 shadow-md backdrop-blur-sm">
           <h2 className="mb-6 text-center text-2xl font-bold text-gray-800">
-            Claim Your Counselling Coupon
+            Claim Your LW15 Tshirt Coupon
           </h2>
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
+          <form onSubmit={handlePhoneSubmit} className="space-y-4">
             <div>
               <label
-                htmlFor="email"
+                htmlFor="phone"
                 className="block text-lg font-medium text-gray-700 mb-4"
               >
-                Email Address
+                Phone Number
               </label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="phone"
+                type="tel"
+                placeholder="Enter your phone number (e.g., +254716813545 or 0716813545)"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 required
+                pattern="(\+?254|0)[0-9]{9}"
                 className="mt-1 w-full bg-white rounded-md focus:border-green-500 focus:ring-green-500"
               />
             </div>
@@ -201,7 +213,7 @@ const CouponForm = () => {
               className="w-full rounded-md bg-black text-white hover:bg-gray-900 focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
               style={{ border: "0.5px solid #22c55e" }}
             >
-              {isLoading ? "Searching..." : "Confirm Email"}
+              {isLoading ? "Searching..." : "Confirm Phone Number"}
             </Button>
           </form>
         </div>
@@ -232,17 +244,34 @@ const CouponForm = () => {
             </div>
             <div>
               <label
-                htmlFor="phone"
+                htmlFor="email"
                 className="block text-sm font-medium text-gray-700"
               >
-                Phone Number
+                Email Address
               </label>
               <Input
-                id="phone"
-                type="tel"
-                placeholder="start with 0716 / 0112"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="Enter your email (e.g., example@domain.com)"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="mt-1 w-full"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="location"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Location
+              </label>
+              <Input
+                id="location"
+                type="text"
+                placeholder="Enter your location (e.g., Nairobi, Kenya)"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
                 required
                 className="mt-1 w-full"
               />
