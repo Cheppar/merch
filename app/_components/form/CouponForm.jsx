@@ -90,7 +90,7 @@ const CouponForm = () => {
   const sendWhatsAppMessage = async (phone, code) => {
     try {
       const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
-      const message = `Thank you for claiming your Supabase LW15 coupon! 🎉\n\nHere is your LW15 T-Shirt Coupon Code: ${code}\nCheckout here: https://supabase.store/ \n \n For support, contact: +254 716 813 545 \n Support on X: https://x.com/chepparing\n\n Let's build with Supabase!`;
+      const message = `Thank you for claiming your Supabase LW15 coupon! 🎉\n\nHere is your LW15 T-Shirt Coupon Code: ${code}\nCheckout here: https://supabase.store/23riouig \n \n For support, contact: +254 716 813 545 \n Support on X: https://x.com/chepparing\n\n Let's build with Supabase!`;
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(
         message
       )}`;
