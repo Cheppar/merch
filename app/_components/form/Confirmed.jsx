@@ -131,7 +131,7 @@ const Confirmed = () => {
           !isLoading &&
           !error && (
             <p className="text-center text-gray-600">
-              No claimed coupons available.
+              No claimed coupons available/claimed.
             </p>
           )
         )}
