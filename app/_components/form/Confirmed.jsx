@@ -19,6 +19,23 @@ const Confirmed = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Function to mask the middle five digits of a phone number
+  const maskPhoneNumber = (phone) => {
+    // Handle null, undefined, or non-string/number inputs
+    if (!phone) return "N/A";
+    
+    // Convert to string to ensure .slice works
+    const phoneStr = String(phone).replace(/[^\d]/g, ""); // Remove non-digits (e.g., +, spaces)
+
+    // Check if the phone number has enough digits (at least 10)
+    if (phoneStr.length < 10) return "N/A";
+
+    // Mask middle five digits
+    const prefix = phoneStr.slice(0, 6); // e.g., 254716
+    const suffix = phoneStr.slice(-3); // e.g., 545
+    return `${prefix}*****${suffix}`; // e.g., 254716*****545
+  };
+
   const fetchClaimedCoupons = async () => {
     setIsLoading(true);
     setError(null);
@@ -104,7 +121,7 @@ const Confirmed = () => {
                     <TableCell className="font-medium">
                       {coupon.name || "N/A"}
                     </TableCell>
-                    <TableCell>{coupon.contact || "N/A"}</TableCell>
+                    <TableCell>{maskPhoneNumber(coupon.contact)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -114,7 +131,7 @@ const Confirmed = () => {
           !isLoading &&
           !error && (
             <p className="text-center text-gray-600">
-              No claimed coupons available.
+              No claimed coupons available/claimed.
             </p>
           )
         )}
